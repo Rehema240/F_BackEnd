@@ -13,7 +13,7 @@ class Command(BaseCommand):
 
         # Create dummy users
         for i in range(10):
-            User.objects.create(
+            User.objects.create_user(
                 username=f'user{i}',
                 email=f'user{i}@example.com',
                 password='password',
