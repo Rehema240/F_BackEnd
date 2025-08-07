@@ -4,7 +4,8 @@ from .views import (
     loginAPIView,
     OpportunityListCreateView, OpportunityDetailView,
     userProfileView,
-    changePasswordView
+    changePasswordView,
+    adminStatisticsAPIView # Added this line
 )
 
 urlpatterns = [
@@ -15,4 +16,5 @@ urlpatterns = [
     path('change-password/', changePasswordView, name='change-password'),
     path('opportunities/', OpportunityListCreateView.as_view(), name='opportunity-list-create'),
     path('opportunities/<int:pk>/', OpportunityDetailView.as_view(), name='opportunity-detail'),
+    path('admin/statistics/', adminStatisticsAPIView, name='admin-statistics'),
 ]

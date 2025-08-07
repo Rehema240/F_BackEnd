@@ -51,6 +51,8 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class OpportunitySerializer(serializers.ModelSerializer):
+    employee = serializers.PrimaryKeyRelatedField(read_only=True, default=serializers.CurrentUserDefault())
+
     class Meta:
         model = Opportunity
         fields = [

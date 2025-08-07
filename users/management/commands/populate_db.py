@@ -13,12 +13,18 @@ class Command(BaseCommand):
 
         # Create dummy users
         for i in range(10):
+            role_choice = random.choice(['student', 'employee','admin','head'])
+            is_staff = True if role_choice == 'admin' else False
+            is_superuser = True if role_choice == 'admin' else False
+
             User.objects.create_user(
                 username=f'user{i}',
                 email=f'user{i}@example.com',
                 password='password',
                 phone_number=f'123456789{i}',
-                role=random.choice(['student', 'employee','admin','head'])
+                role=role_choice,
+                is_staff=is_staff,
+                is_superuser=is_superuser
             )
 
         self.stdout.write(self.style.SUCCESS('Successfully populated the database.'))

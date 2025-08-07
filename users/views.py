@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from django.contrib.auth import authenticate, login
 from drf_yasg.utils import swagger_auto_schema
 from .models import User, Opportunity
+from event.models import Event, EventApplication # Added this line
 from .serializers import UserSerializer, OpportunitySerializer, LoginSerializer, TokenSerializer, ChangePasswordSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -113,7 +114,11 @@ changePasswordView = ChangePasswordView.as_view()
 class OpportunityListCreateView(generics.ListCreateAPIView):
     queryset = Opportunity.objects.all()
     serializer_class = OpportunitySerializer
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated] # Changed to IsAuthenticated
+
+    def perform_create(self, serializer):
+        # Automatically set the employee to the current authenticated user
+        serializer.save(employee=self.request.user)
 
 opportunityListCreateView = OpportunityListCreateView.as_view()
 
@@ -128,3 +133,40 @@ class OpportunityDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [permissions.AllowAny]
 
 opportunityDetailView = OpportunityDetailView.as_view()
+
+
+class AdminStatisticsAPIView(APIView):
+    permission_classes = [permissions.IsAdminUser] # Only admin users can access this
+
+    @swagger_auto_schema(
+        responses={200: "Statistics data"}
+    )
+    def get(self, request, *args, **kwargs):
+        # Count total users by role
+        total_students = User.objects.filter(role='student').count()
+        total_employees = User.objects.filter(role='employee').count()
+        total_heads = User.objects.filter(role='head').count()
+        total_admins = User.objects.filter(role='admin').count() # Include admins for completeness
+
+        # Count total events and opportunities
+        total_events = Event.objects.count()
+        total_opportunities = Opportunity.objects.count()
+
+        # Count students who accepted an event
+        # Get all accepted event applications
+        accepted_applications = EventApplication.objects.filter(status='accepted')
+        # Filter these applications to only include those from users with the 'student' role
+        students_accepted_event = accepted_applications.filter(user__role='student').count()
+
+        data = {
+            'total_students': total_students,
+            'total_employees': total_employees,
+            'total_heads': total_heads,
+            'total_admins': total_admins,
+            'total_events': total_events,
+            'total_opportunities': total_opportunities,
+            'students_accepted_event': students_accepted_event,
+        }
+        return Response(data, status=status.HTTP_200_OK)
+
+adminStatisticsAPIView = AdminStatisticsAPIView.as_view()
