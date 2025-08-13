@@ -3,7 +3,11 @@ from sqlalchemy.orm import sessionmaker, Session
 
 # Database Configuration
 SQLALCHEMY_DATABASE_URL = "postgresql://neondb_owner:npg_rbgtUJ63IuDH@ep-rough-dawn-a45dikld-pooler.us-east-1.aws.neon.tech/rehema123?sslmode=require&channel_binding=require"
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL,
+    pool_recycle=3600,
+    pool_pre_ping=True
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Dependency to get the database session

@@ -52,19 +52,27 @@ def decode_access_token(token: str):
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-def get_current_user(token: str = Depends(oauth2_scheme)):
+from .dependencies import get_db
+from sqlalchemy.orm import Session
+
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     payload = decode_access_token(token)
     user_id: str = payload.get("user_id")
-    user_role: str = payload.get("user_role")
-    if user_id is None or user_role is None:
+    if user_id is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    # In a real app, you'd fetch the user from the DB to ensure they exist and are active
-    # For now, we'll just return a dummy UserRead object
-    return UserRead(id=user_id, username=payload.get("sub"), email="dummy@example.com", role=RoleEnum(user_role), is_active=True, created_at=datetime.utcnow())
+    
+    user = db.query(User).filter(User.id == user_id).first()
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return user
 
 def get_current_admin_user(current_user: UserRead = Depends(get_current_user)):
     if current_user.role != RoleEnum.ADMIN:

@@ -6,6 +6,7 @@ from event_api.auth import verify_password, create_access_token, ACCESS_TOKEN_EX
 from fastapi.security import OAuth2PasswordRequestForm
 from datetime import timedelta
 from typing import List
+from fastapi.middleware.cors import CORSMiddleware
 
 from event_api.routers import admin, head, employee, student, auth
 
@@ -13,6 +14,15 @@ app = FastAPI(
     title="Event Management API",
     description="API for managing events, opportunities, users, and notifications with role-based access control.",
     version="1.0.0",
+)
+
+# CORS Middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
 )
 
 # Create database tables

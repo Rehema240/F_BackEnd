@@ -51,3 +51,7 @@ def change_password(
     db.commit()
     db.refresh(user)
     return {"message": "Password updated successfully"}
+
+@router.get("/me", response_model=UserRead)
+def read_users_me(current_user: UserRead = Depends(get_current_user)):
+    return current_user
