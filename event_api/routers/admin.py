@@ -5,7 +5,7 @@ from uuid import UUID
 
 from event_api.dependencies import get_db
 from event_api.models import RoleEnum
-from event_api.schemas import UserCreate, UserRead, EventCreate, EventRead, OpportunityCreate, OpportunityRead, EventConfirmationRead, NotificationCreate, NotificationRead
+from event_api.schemas import UserCreate, UserRead, EventCreate, EventRead, OpportunityCreate, OpportunityRead, EventConfirmationRead, NotificationCreate, NotificationRead, AdminDashboardData
 from event_api.auth import get_current_admin_user, get_password_hash
 from event_api import crud
 
@@ -16,7 +16,20 @@ router = APIRouter(
     responses={403: {"description": "Not authorized"}}
 )
 
-# User Management
+# Dashboard
+@router.get("/dashboard", response_model=AdminDashboardData)
+def get_admin_dashboard_data(db: Session = Depends(get_db)):
+    total_users = db.query(crud.models.User).count()
+    total_events = db.query(crud.models.Event).count()
+    total_opportunities = db.query(crud.models.Opportunity).count()
+    total_confirmations = db.query(crud.models.EventConfirmation).count()
+    return AdminDashboardData(
+        total_users=total_users,
+        total_events=total_events,
+        total_opportunities=total_opportunities,
+        total_confirmations=total_confirmations
+    )
+
 # User Management
 @router.post("/users/", response_model=UserRead)
 def create_user_admin(user: UserCreate, db: Session = Depends(get_db)):

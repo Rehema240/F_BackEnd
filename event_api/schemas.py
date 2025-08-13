@@ -116,3 +116,10 @@ class LoginRequest(BaseModel):
 class ChangePasswordRequest(BaseModel):
     old_password: str
     new_password: str
+
+# ---------- Dashboard ----------
+class AdminDashboardData(BaseModel):
+    total_users: int
+    total_events: int
+    total_opportunities: int
+    total_confirmations: int
