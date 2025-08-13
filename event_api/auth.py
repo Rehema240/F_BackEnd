@@ -1,0 +1,99 @@
+from datetime import datetime, timedelta
+from typing import Optional
+
+from jose import JWTError, jwt
+from passlib.context import CryptContext
+
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+
+from event_api.models import User, RoleEnum
+from event_api.schemas import UserRead
+
+# Configuration for JWT
+SECRET_KEY = "your-secret-key" # In a real app, use environment variables
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
+
+def get_password_hash(password):
+    return pwd_context.hash(password)
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=15)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+def decode_access_token(token: str):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Could not validate credentials",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        return payload
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+def get_current_user(token: str = Depends(oauth2_scheme)):
+    payload = decode_access_token(token)
+    user_id: str = payload.get("user_id")
+    user_role: str = payload.get("user_role")
+    if user_id is None or user_role is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    # In a real app, you'd fetch the user from the DB to ensure they exist and are active
+    # For now, we'll just return a dummy UserRead object
+    return UserRead(id=user_id, username=payload.get("sub"), email="dummy@example.com", role=RoleEnum(user_role), is_active=True, created_at=datetime.utcnow())
+
+def get_current_admin_user(current_user: UserRead = Depends(get_current_user)):
+    if current_user.role != RoleEnum.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to perform this action"
+        )
+    return current_user
+
+def get_current_head_user(current_user: UserRead = Depends(get_current_user)):
+    if current_user.role not in [RoleEnum.ADMIN, RoleEnum.HEAD]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to perform this action"
+        )
+    return current_user
+
+def get_current_employee_user(current_user: UserRead = Depends(get_current_user)):
+    if current_user.role not in [RoleEnum.ADMIN, RoleEnum.HEAD, RoleEnum.EMPLOYEE]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to perform this action"
+        )
+    return current_user
+
+def get_current_student_user(current_user: UserRead = Depends(get_current_user)):
+    if current_user.role not in [RoleEnum.ADMIN, RoleEnum.HEAD, RoleEnum.EMPLOYEE, RoleEnum.STUDENT]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to perform this action"
+        )
+    return current_user
