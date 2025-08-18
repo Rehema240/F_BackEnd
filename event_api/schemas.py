@@ -123,3 +123,12 @@ class AdminDashboardData(BaseModel):
     total_events: int
     total_opportunities: int
     total_confirmations: int
+
+class HeadDashboardData(BaseModel):
+    department: str
+    department_users: int
+    department_events: int
+    department_opportunities: int
+    department_confirmations: int
+    recent_events: List[EventRead]
+    upcoming_events: int

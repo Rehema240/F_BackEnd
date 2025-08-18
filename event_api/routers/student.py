@@ -95,24 +95,58 @@ def read_opportunity_student(opportunity_id: UUID, db: Session = Depends(get_db)
 # Event Confirmation
 @router.post("/event_confirmations/", response_model=EventConfirmationRead)
 def create_event_confirmation_student(confirmation: EventConfirmationCreate, db: Session = Depends(get_db), current_user: UserRead = Depends(get_current_student_user)):
+    # Validate event exists
     event = crud.get_event(db, event_id=confirmation.event_id)
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
 
+    # Check if student already confirmed
     existing_confirmation = crud.get_event_confirmation_by_student_and_event(db, event_id=confirmation.event_id, student_id=current_user.id)
     if existing_confirmation:
         raise HTTPException(status_code=400, detail="Student already confirmed for this event")
 
-    db_confirmation = crud.create_event_confirmation(db=db, confirmation=confirmation, student_id=current_user.id)
-    event.confirmation_count += 1 # Increment confirmation count
-    db.commit() # Commit the event update
-    db.refresh(event) # Refresh event to show updated count
-    return db_confirmation
+    # Set default status if not provided
+    if confirmation.status is None:
+        confirmation.status = crud.models.ConfirmationStatusEnum.CONFIRMED
+        
+    try:
+        # Create confirmation
+        db_confirmation = crud.create_event_confirmation(db=db, confirmation=confirmation, student_id=current_user.id)
+        
+        # Increment confirmation count
+        event.confirmation_count += 1
+        db.commit()
+        db.refresh(event)
+        
+        return db_confirmation
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=422, detail=f"Error creating confirmation: {str(e)}")
 
 @router.get("/my_event_confirmations/", response_model=List[EventConfirmationRead])
 def get_my_event_confirmations_student(db: Session = Depends(get_db), current_user: UserRead = Depends(get_current_student_user)):
-    confirmations = crud.get_notifications_for_recipient(db, recipient_id=current_user.id)
+    confirmations = crud.get_event_confirmations_for_student(db, student_id=current_user.id)
     return confirmations
+
+@router.get("/event_confirmations/debug/{event_id}")
+def debug_event_confirmation(event_id: UUID, db: Session = Depends(get_db), current_user: UserRead = Depends(get_current_student_user)):
+    """Debug endpoint to check event confirmation data structure"""
+    # Get the event
+    event = crud.get_event(db, event_id=event_id)
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+        
+    # Create a sample confirmation data structure
+    sample_data = {
+        "event_id": str(event_id),
+        "note": "Optional note from student",
+        "status": "confirmed"
+    }
+    
+    return {
+        "message": "Use this format for creating event confirmations",
+        "sample_data": sample_data
+    }
 
 # Notification Endpoints
 @router.get("/notifications/", response_model=List[NotificationRead])

@@ -6,7 +6,7 @@ from datetime import datetime
 
 from event_api.dependencies import get_db
 from event_api.models import RoleEnum
-from event_api.schemas import UserRead, EventCreate, EventRead, OpportunityCreate, OpportunityRead, EventConfirmationRead
+from event_api.schemas import UserRead, EventCreate, EventRead, OpportunityCreate, OpportunityRead, EventConfirmationRead, HeadDashboardData
 from event_api.auth import get_current_head_user
 from event_api import crud
 
@@ -17,8 +17,60 @@ router = APIRouter(
     responses={403: {"description": "Not authorized"}}
 )
 
-# Dashboard Endpoints (example)
-# Dashboard Endpoints (example)
+# Dashboard
+@router.get("/dashboard", response_model=HeadDashboardData)
+def get_head_dashboard_data(db: Session = Depends(get_db), current_user: UserRead = Depends(get_current_head_user)):
+    if not current_user.department:
+        raise HTTPException(status_code=400, detail="Head must be assigned to a department")
+    
+    # Count users in the department
+    department_users_count = db.query(crud.models.User).filter(
+        crud.models.User.department == current_user.department
+    ).count()
+    
+    # Count events in the department
+    department_events_count = db.query(crud.models.Event).filter(
+        crud.models.Event.department == current_user.department
+    ).count()
+    
+    # Count opportunities in the department
+    department_opportunities_count = db.query(crud.models.Opportunity).filter(
+        crud.models.Opportunity.department == current_user.department
+    ).count()
+    
+    # Count confirmations for events in the department
+    department_event_ids = db.query(crud.models.Event.id).filter(
+        crud.models.Event.department == current_user.department
+    ).all()
+    department_event_ids = [event_id for (event_id,) in department_event_ids]
+    
+    department_confirmations_count = db.query(crud.models.EventConfirmation).filter(
+        crud.models.EventConfirmation.event_id.in_(department_event_ids)
+    ).count() if department_event_ids else 0
+    
+    # Get 5 most recent events in the department
+    recent_events = db.query(crud.models.Event).filter(
+        crud.models.Event.department == current_user.department
+    ).order_by(crud.models.Event.created_at.desc()).limit(5).all()
+    
+    # Count upcoming events in the department
+    now = datetime.utcnow()
+    upcoming_events_count = db.query(crud.models.Event).filter(
+        crud.models.Event.department == current_user.department,
+        crud.models.Event.start_time > now
+    ).count()
+    
+    return HeadDashboardData(
+        department=current_user.department,
+        department_users=department_users_count,
+        department_events=department_events_count,
+        department_opportunities=department_opportunities_count,
+        department_confirmations=department_confirmations_count,
+        recent_events=recent_events,
+        upcoming_events=upcoming_events_count
+    )
+
+# Legacy dashboard endpoints (kept for backward compatibility)
 @router.get("/dashboard/department_users/", response_model=List[UserRead])
 def get_department_users(db: Session = Depends(get_db), current_user: UserRead = Depends(get_current_head_user)):
     users = db.query(crud.models.User).filter(crud.models.User.department == current_user.department).all()

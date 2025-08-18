@@ -120,6 +120,9 @@ def get_event_confirmation(db: Session, confirmation_id: UUID):
 def get_event_confirmations_for_event(db: Session, event_id: UUID):
     return db.query(models.EventConfirmation).filter(models.EventConfirmation.event_id == event_id).all()
 
+def get_event_confirmations_for_student(db: Session, student_id: UUID):
+    return db.query(models.EventConfirmation).filter(models.EventConfirmation.student_id == student_id).all()
+
 def get_event_confirmation_by_student_and_event(db: Session, event_id: UUID, student_id: UUID):
     return db.query(models.EventConfirmation).filter(
         models.EventConfirmation.event_id == event_id,
@@ -127,9 +130,12 @@ def get_event_confirmation_by_student_and_event(db: Session, event_id: UUID, stu
     ).first()
 
 def create_event_confirmation(db: Session, confirmation: schemas.EventConfirmationCreate, student_id: UUID):
+    # Explicitly extract fields to avoid potential dict parsing issues
     db_confirmation = models.EventConfirmation(
-        **confirmation.dict(),
-        student_id=student_id
+        event_id=confirmation.event_id,
+        student_id=student_id,
+        status=confirmation.status or models.ConfirmationStatusEnum.CONFIRMED,
+        note=confirmation.note
     )
     db.add(db_confirmation)
     db.commit()

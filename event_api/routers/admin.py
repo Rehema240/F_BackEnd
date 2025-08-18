@@ -77,6 +77,11 @@ def delete_user_admin(user_id: UUID, db: Session = Depends(get_db)):
 def create_event_admin(event: EventCreate, db: Session = Depends(get_db), current_user: UserRead = Depends(get_current_admin_user)):
     return crud.create_event(db=db, event=event, creator_id=current_user.id, creator_role=current_user.role)
 
+@router.get("/events/all", response_model=List[EventRead])
+def get_all_events_admin(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    events = crud.get_events(db, skip=skip, limit=limit)
+    return events
+
 @router.put("/events/{event_id}", response_model=EventRead)
 def update_event_admin(event_id: UUID, event_update: EventCreate, db: Session = Depends(get_db)):
     db_event = crud.get_event(db, event_id=event_id)
@@ -91,9 +96,7 @@ def delete_event_admin(event_id: UUID, db: Session = Depends(get_db)):
     if db_event is None:
         raise HTTPException(status_code=404, detail="Event not found")
     
-    if db_event.creator_role == RoleEnum.ADMIN:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Events created by Admin cannot be deleted.")
-
+    # Removed restriction - Admins can now delete any event
     crud.delete_event(db, event_id=event_id)
     return {"message": "Event deleted successfully"}
 
@@ -101,6 +104,11 @@ def delete_event_admin(event_id: UUID, db: Session = Depends(get_db)):
 @router.post("/opportunities/", response_model=OpportunityRead)
 def create_opportunity_admin(opportunity: OpportunityCreate, db: Session = Depends(get_db), current_user: UserRead = Depends(get_current_admin_user)):
     return crud.create_opportunity(db=db, opportunity=opportunity, posted_by_id=current_user.id, posted_by_role=current_user.role)
+
+@router.get("/opportunities/all", response_model=List[OpportunityRead])
+def get_all_opportunities_admin(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    opportunities = crud.get_opportunities(db, skip=skip, limit=limit)
+    return opportunities
 
 @router.put("/opportunities/{opportunity_id}", response_model=OpportunityRead)
 def update_opportunity_admin(opportunity_id: UUID, opportunity_update: OpportunityCreate, db: Session = Depends(get_db)):
