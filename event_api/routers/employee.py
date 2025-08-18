@@ -42,7 +42,18 @@ def update_users_me_employee(user_update: UserCreate, db: Session = Depends(get_
 # Event Management
 @router.post("/events/", response_model=EventRead)
 def create_event_employee(event: EventCreate, db: Session = Depends(get_db), current_user: UserRead = Depends(get_current_employee_user)):
-    return crud.create_event(db=db, event=event, creator_id=current_user.id, creator_role=current_user.role)
+    new_event = crud.create_event(db=db, event=event, creator_id=current_user.id, creator_role=current_user.role)
+    
+    # Send notifications to all students about the new event
+    department_info = f" in the {new_event.department} department" if new_event.department else ""
+    crud.send_event_notifications_to_students(
+        db=db, 
+        event_id=new_event.id,
+        title=new_event.title,
+        description=new_event.description if new_event.description else f"A new event has been created by an employee{department_info}."
+    )
+    
+    return new_event
 
 @router.get("/events/", response_model=List[EventRead])
 def read_events_employee(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_user: UserRead = Depends(get_current_employee_user)):

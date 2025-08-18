@@ -175,3 +175,32 @@ def delete_notification(db: Session, notification_id: UUID):
         db.delete(db_notification)
         db.commit()
     return db_notification
+
+def send_event_notifications_to_students(db: Session, event_id: UUID, title: str, description: str):
+    """
+    Send notifications to all students when a new event is created
+    """
+    # Get the event
+    event = get_event(db, event_id=event_id)
+    if not event:
+        return False
+    
+    # Get all student users
+    student_users = db.query(models.User).filter(models.User.role == models.RoleEnum.STUDENT).all()
+    
+    # Create notifications for each student
+    notifications = []
+    for student in student_users:
+        notification = models.Notification(
+            recipient_id=student.id,
+            title=f"New Event: {title}",
+            body=description,
+            type=models.NotificationTypeEnum.EVENT,
+            related_event_id=event_id,
+            is_read=False
+        )
+        db.add(notification)
+        notifications.append(notification)
+    
+    db.commit()
+    return notifications

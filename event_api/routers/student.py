@@ -7,6 +7,7 @@ from datetime import datetime
 from event_api.dependencies import get_db
 from event_api.models import RoleEnum
 from event_api.schemas import UserCreate, UserRead, EventRead, OpportunityRead, EventConfirmationCreate, EventConfirmationRead, NotificationRead
+from event_api import models
 from event_api.auth import get_current_student_user, get_current_user, get_password_hash
 from event_api import crud
 
@@ -150,8 +151,23 @@ def debug_event_confirmation(event_id: UUID, db: Session = Depends(get_db), curr
 
 # Notification Endpoints
 @router.get("/notifications/", response_model=List[NotificationRead])
-def read_notifications_student(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_user: UserRead = Depends(get_current_student_user)):
-    notifications = crud.get_notifications_for_recipient(db, recipient_id=current_user.id, skip=skip, limit=limit)
+def read_notifications_student(
+    skip: int = 0, 
+    limit: int = 100, 
+    unread_only: bool = False,
+    notification_type: Optional[models.NotificationTypeEnum] = None, 
+    db: Session = Depends(get_db), 
+    current_user: UserRead = Depends(get_current_student_user)
+):
+    query = db.query(models.Notification).filter(models.Notification.recipient_id == current_user.id)
+    
+    if unread_only:
+        query = query.filter(models.Notification.is_read == False)
+    
+    if notification_type:
+        query = query.filter(models.Notification.type == notification_type)
+    
+    notifications = query.order_by(models.Notification.created_at.desc()).offset(skip).limit(limit).all()
     return notifications
 
 @router.get("/notifications/{notification_id}", response_model=NotificationRead)
@@ -175,3 +191,28 @@ def mark_notification_as_read_student(notification_id: UUID, db: Session = Depen
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to mark this notification as read")
     
     return crud.update_notification(db, db_notification=notification, is_read=True)
+
+@router.get("/notifications/unread_count")
+def get_unread_notification_count_student(db: Session = Depends(get_db), current_user: UserRead = Depends(get_current_student_user)):
+    unread_count = db.query(models.Notification).filter(
+        models.Notification.recipient_id == current_user.id,
+        models.Notification.is_read == False
+    ).count()
+    
+    return {"unread_count": unread_count}
+    
+@router.put("/notifications/mark_all_read")
+def mark_all_notifications_as_read_student(db: Session = Depends(get_db), current_user: UserRead = Depends(get_current_student_user)):
+    # Get all unread notifications
+    unread_notifications = db.query(models.Notification).filter(
+        models.Notification.recipient_id == current_user.id,
+        models.Notification.is_read == False
+    ).all()
+    
+    # Mark them as read
+    for notification in unread_notifications:
+        notification.is_read = True
+    
+    db.commit()
+    
+    return {"message": f"Marked {len(unread_notifications)} notifications as read"}

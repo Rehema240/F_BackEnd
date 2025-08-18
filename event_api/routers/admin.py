@@ -75,7 +75,17 @@ def delete_user_admin(user_id: UUID, db: Session = Depends(get_db)):
 # Event Management
 @router.post("/events/", response_model=EventRead)
 def create_event_admin(event: EventCreate, db: Session = Depends(get_db), current_user: UserRead = Depends(get_current_admin_user)):
-    return crud.create_event(db=db, event=event, creator_id=current_user.id, creator_role=current_user.role)
+    new_event = crud.create_event(db=db, event=event, creator_id=current_user.id, creator_role=current_user.role)
+    
+    # Send notifications to all students about the new event
+    crud.send_event_notifications_to_students(
+        db=db, 
+        event_id=new_event.id,
+        title=new_event.title,
+        description=new_event.description if new_event.description else f"A new event has been created by an administrator."
+    )
+    
+    return new_event
 
 @router.get("/events/all", response_model=List[EventRead])
 def get_all_events_admin(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
